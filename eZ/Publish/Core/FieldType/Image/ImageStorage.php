@@ -15,6 +15,7 @@ use eZ\Publish\Core\IO\IOService;
 use eZ\Publish\Core\FieldType\GatewayBasedStorage;
 use eZ\Publish\Core\IO\MetadataHandler;
 use eZ\Publish\Core\Base\Exceptions\NotFoundException;
+use Psr\Log\LoggerInterface;
 
 /**
  * Converter for Image field type external storage
@@ -25,6 +26,11 @@ use eZ\Publish\Core\Base\Exceptions\NotFoundException;
  */
 class ImageStorage extends GatewayBasedStorage
 {
+    /**
+     * @var \Psr\Log\LoggerInterface
+     */
+    private $logger;
+
     /**
      * The IO Service used to manipulate data
      *
@@ -50,12 +56,13 @@ class ImageStorage extends GatewayBasedStorage
      * @param PathGenerator $imageSizeMetadataHandler
      * @param MetadataHandler $pathGenerator
      */
-    public function __construct( array $gateways, IOService $IOService, PathGenerator $pathGenerator, MetadataHandler $imageSizeMetadataHandler )
+    public function __construct( array $gateways, IOService $IOService, PathGenerator $pathGenerator, MetadataHandler $imageSizeMetadataHandler, LoggerInterface $logger = null )
     {
         parent::__construct( $gateways );
         $this->IOService = $IOService;
         $this->pathGenerator = $pathGenerator;
         $this->imageSizeMetadataHandler = $imageSizeMetadataHandler;
+        $this->logger = $logger;
     }
 
     /**
@@ -159,7 +166,12 @@ class ImageStorage extends GatewayBasedStorage
             }
             catch ( NotFoundException $e )
             {
-                return;
+                if ( isset( $this->logger ) )
+                {
+                    $imageId = $this->IOService->getExternalPath( $field->value->data['id'] );
+                    $this->logger->error( "Legacy file with SPI id $imageId not found" );
+                }
+                return false;
             }
 
             $field->value->data = array_merge(
@@ -225,6 +237,10 @@ class ImageStorage extends GatewayBasedStorage
             }
             catch ( NotFoundException $e )
             {
+                if ( isset( $this->logger ) )
+                {
+                    $this->logger->error( "Legacy file with id $binaryFileId not found" );
+                }
                 return;
             }
 
@@ -267,6 +283,11 @@ class ImageStorage extends GatewayBasedStorage
                     }
                     catch ( NotFoundException $e )
                     {
+                        if ( isset( $this->logger ) )
+                        {
+                            $this->logger->error( "Legacy file with id $binaryFileId not found" );
+                        }
+                        return;
                     }
                 }
             }

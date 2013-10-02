@@ -18,7 +18,6 @@ use eZ\Publish\SPI\IO\BinaryFileUpdateStruct;
 use eZ\Publish\Core\Base\Exceptions\InvalidArgumentException;
 use eZ\Publish\Core\Base\Exceptions\NotFoundException;
 use eZ\Publish\Core\MVC\Legacy\Kernel as LegacyKernel;
-use Psr\Log\LoggerInterface;
 use eZClusterFileHandler;
 use DateTime;
 use finfo;
@@ -64,19 +63,13 @@ class Legacy implements IOHandlerInterface
      */
     private $storageDirectory;
 
-    /**
-     * @var \Psr\Log\LoggerInterface
-     */
-    private $logger;
-
-    public function __construct( $storageDirectory, LegacyKernel $legacyKernel = null, LoggerInterface $logger = null )
+    public function __construct( $storageDirectory, LegacyKernel $legacyKernel = null )
     {
         if ( $legacyKernel )
         {
             $this->legacyKernel = $legacyKernel;
         }
         $this->storageDirectory = $storageDirectory;
-        $this->logger = $logger;
     }
 
     public function setLegacyKernelClosure( \Closure $kernelClosure )
@@ -199,10 +192,6 @@ class Legacy implements IOHandlerInterface
     {
         if ( !$this->exists( $spiBinaryFileId ) )
         {
-            if ( isset( $this->logger ) )
-            {
-                $this->logger->error( "Legacy file with SPI id $spiBinaryFileId not found in storage directory {$this->storageDirectory}" );
-            }
             throw new NotFoundException( 'BinaryFile', $spiBinaryFileId );
         }
         $storagePath = $this->getStoragePath( $spiBinaryFileId );
@@ -231,10 +220,6 @@ class Legacy implements IOHandlerInterface
     {
         if ( !$this->exists( $spiBinaryFileId ) )
         {
-            if ( isset( $this->logger ) )
-            {
-                $this->logger->error( "Legacy file with SPI id $spiBinaryFileId not found in storage directory {$this->storageDirectory}" );
-            }
             throw new NotFoundException( 'BinaryFile', $spiBinaryFileId );
         }
 
@@ -321,10 +306,6 @@ class Legacy implements IOHandlerInterface
     {
         if ( !$this->exists( $spiBinaryFileId ) )
         {
-            if ( isset( $this->logger ) )
-            {
-                $this->logger->error( "Legacy file with SPI id $spiBinaryFileId not found in storage directory {$this->storageDirectory}" );
-            }
             throw new NotFoundException( 'BinaryFile', $spiBinaryFileId );
         }
 
@@ -368,10 +349,6 @@ class Legacy implements IOHandlerInterface
     {
         if ( !$this->exists( $spiBinaryFileId ) )
         {
-            if ( isset( $this->logger ) )
-            {
-                $this->logger->error( "Legacy file with SPI id $spiBinaryFileId not found in storage directory {$this->storageDirectory}" );
-            }
             throw new NotFoundException( "spiBinaryFile", $spiBinaryFileId );
         }
         return $this->getFileResourceProvider()->getResource( $this->getStoragePath( $spiBinaryFileId ) );
@@ -390,10 +367,6 @@ class Legacy implements IOHandlerInterface
     {
         if ( !$this->exists( $spiBinaryFileId ) )
         {
-            if ( isset( $this->logger ) )
-            {
-                $this->logger->error( "Legacy file with SPI id $spiBinaryFileId not found in storage directory {$this->storageDirectory}" );
-            }
             throw new NotFoundException( 'BinaryFile', $spiBinaryFileId );
         }
 
@@ -521,10 +494,6 @@ class Legacy implements IOHandlerInterface
 
         if ( $returnValue === null )
         {
-            if ( isset( $this->logger ) )
-            {
-                $this->logger->error( "Legacy file with path $path" );
-            }
             throw new NotFoundException( 'BinaryFile', $path );
         }
 
