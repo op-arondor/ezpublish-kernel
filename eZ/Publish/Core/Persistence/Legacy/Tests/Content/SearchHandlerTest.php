@@ -9,6 +9,7 @@
 
 namespace eZ\Publish\Core\Persistence\Legacy\Tests\Content;
 
+use eZ\Publish\Core\Persistence;
 use eZ\Publish\Core\Persistence\Legacy\Content\Gateway\EzcDatabase\QueryBuilder;
 use eZ\Publish\Core\Persistence\Legacy\Content;
 use eZ\Publish\SPI\Persistence\Content as ContentObject;
@@ -18,6 +19,7 @@ use eZ\Publish\API\Repository\Values\Content\Query\Criterion;
 use eZ\Publish\SPI\Persistence\Content\VersionInfo;
 use eZ\Publish\SPI\Persistence\Content\ContentInfo;
 use eZ\Publish\Core\Persistence\Legacy\Content\FieldValue\ConverterRegistry;
+use eZ\Publish\Core\Persistence\Legacy\Content\FieldValue\Converter\DateAndTime;
 use eZ\Publish\Core\Persistence\Legacy\Content\FieldValue\Converter\Integer;
 use eZ\Publish\Core\Persistence\Legacy\Content\FieldValue\Converter\TextLine;
 use eZ\Publish\Core\Persistence\Legacy\Content\FieldValue\Converter\Url;
@@ -90,17 +92,35 @@ class SearchHandlerTest extends LanguageAwareTestCase
     protected function getContentSearchHandler( array $fullTextSearchConfiguration = array() )
     {
         $rules = array();
-        foreach ( glob( __DIR__ . '/SearchHandler/_fixtures/transformations/*.tr' ) as $file )
+        foreach ( glob( __DIR__ . '/../../../Tests/TransformationProcessor/_fixtures/transformations/*.tr' ) as $file )
         {
             $rules[] = str_replace( self::getInstallationDir(), '', $file );
         }
 
-        $transformationProcessor = new Content\Search\TransformationProcessor\DefinitionBased(
-            new Content\Search\TransformationProcessor\DefinitionBased\Parser( self::getInstallationDir() ),
-            new Content\Search\TransformationProcessor\PcreCompiler(
-                new Content\Search\Utf8Converter()
+        $transformationProcessor = new Persistence\TransformationProcessor\DefinitionBased(
+            new Persistence\TransformationProcessor\DefinitionBased\Parser( self::getInstallationDir() ),
+            new Persistence\TransformationProcessor\PcreCompiler(
+                new Persistence\Utf8Converter()
             ),
             $rules
+        );
+        $commaSeparatedCollectionValueHandler = new Content\Search\Gateway\CriterionHandler\FieldValue\Handler\Collection(
+            $this->getDatabaseHandler(),
+            $transformationProcessor,
+            ","
+        );
+        $hyphenSeparatedCollectionValueHandler = new Content\Search\Gateway\CriterionHandler\FieldValue\Handler\Collection(
+            $this->getDatabaseHandler(),
+            $transformationProcessor,
+            "-"
+        );
+        $simpleValueHandler = new Content\Search\Gateway\CriterionHandler\FieldValue\Handler\Simple(
+            $this->getDatabaseHandler(),
+            $transformationProcessor
+        );
+        $compositeValueHandler = new Content\Search\Gateway\CriterionHandler\FieldValue\Handler\Composite(
+            $this->getDatabaseHandler(),
+            $transformationProcessor
         );
 
         return new Content\Search\Handler(
@@ -165,11 +185,29 @@ class SearchHandlerTest extends LanguageAwareTestCase
                             $this->getDatabaseHandler(),
                             $this->fieldRegistry = new ConverterRegistry(
                                 array(
-                                    'ezint' => new Integer(),
+                                    'ezdatetime' => new DateAndTime(),
+                                    'ezinteger' => new Integer(),
                                     'ezstring' => new TextLine(),
                                     'ezprice' => new Integer(),
                                     'ezurl' => new Url()
                                 )
+                            ),
+                            new Content\Search\Gateway\CriterionHandler\FieldValue\Converter(
+                                new Content\Search\Gateway\CriterionHandler\FieldValue\HandlerRegistry(
+                                    array(
+                                        "ezboolean" => $simpleValueHandler,
+                                        "ezcountry" => $commaSeparatedCollectionValueHandler,
+                                        "ezdate" => $simpleValueHandler,
+                                        "ezdatetime" => $simpleValueHandler,
+                                        "ezemail" => $simpleValueHandler,
+                                        "ezinteger" => $simpleValueHandler,
+                                        "ezobjectrelation" => $simpleValueHandler,
+                                        "ezobjectrelationlist" => $commaSeparatedCollectionValueHandler,
+                                        "ezselection" => $hyphenSeparatedCollectionValueHandler,
+                                        "eztime" => $simpleValueHandler,
+                                    )
+                                ),
+                                $compositeValueHandler
                             ),
                             $transformationProcessor
                         ),
@@ -1062,6 +1100,78 @@ class SearchHandlerTest extends LanguageAwareTestCase
                             'name',
                             Criterion\Operator::IN,
                             array( 'members', 'anonymous users' )
+                        ),
+                        'limit' => 10,
+                    )
+                )
+            )
+        );
+    }
+
+    /**
+     * @return void
+     * @covers \eZ\Publish\Core\Persistence\Legacy\Content\Search\Gateway\CriterionHandler\Field
+     * @covers \eZ\Publish\Core\Persistence\Legacy\Content\Search\Gateway\EzcDatabase
+     */
+    public function testFieldFilterContainsPartial()
+    {
+        $this->assertSearchResults(
+            array( 42 ),
+            $this->getContentSearchHandler()->findContent(
+                new Query(
+                    array(
+                        'criterion' => new Criterion\Field(
+                            'name',
+                            Criterion\Operator::CONTAINS,
+                            'nonymous use'
+                        ),
+                        'limit' => 10,
+                    )
+                )
+            )
+        );
+    }
+
+    /**
+     * @return void
+     * @covers \eZ\Publish\Core\Persistence\Legacy\Content\Search\Gateway\CriterionHandler\Field
+     * @covers \eZ\Publish\Core\Persistence\Legacy\Content\Search\Gateway\EzcDatabase
+     */
+    public function testFieldFilterContainsSimple()
+    {
+        $this->assertSearchResults(
+            array( 77 ),
+            $this->getContentSearchHandler()->findContent(
+                new Query(
+                    array(
+                        'criterion' => new Criterion\Field(
+                            'publish_date',
+                            Criterion\Operator::CONTAINS,
+                            1174643880
+                        ),
+                        'limit' => 10,
+                    )
+                )
+            )
+        );
+    }
+
+    /**
+     * @return void
+     * @covers \eZ\Publish\Core\Persistence\Legacy\Content\Search\Gateway\CriterionHandler\Field
+     * @covers \eZ\Publish\Core\Persistence\Legacy\Content\Search\Gateway\EzcDatabase
+     */
+    public function testFieldFilterContainsSimpleNoMatch()
+    {
+        $this->assertSearchResults(
+            array(),
+            $this->getContentSearchHandler()->findContent(
+                new Query(
+                    array(
+                        'criterion' => new Criterion\Field(
+                            'publish_date',
+                            Criterion\Operator::CONTAINS,
+                            1174643
                         ),
                         'limit' => 10,
                     )
