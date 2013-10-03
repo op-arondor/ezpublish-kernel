@@ -10,6 +10,5 @@ services:
         arguments:
             - %ezpublish.core.io.handler.legacy.class%
             - [var_dir, storage_dir]
-            - @?logger
         calls:
             - [setLegacyKernelClosure, [@ezpublish_legacy.kernel]]

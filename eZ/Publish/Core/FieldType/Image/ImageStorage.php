@@ -27,9 +27,9 @@ use Psr\Log\LoggerInterface;
 class ImageStorage extends GatewayBasedStorage
 {
     /**
-     * @var \Psr\Log\LoggerInterface
+     * @var LoggerInterface
      */
-    private $logger;
+    protected $logger;
 
     /**
      * The IO Service used to manipulate data
@@ -52,9 +52,10 @@ class ImageStorage extends GatewayBasedStorage
      * Construct from gateways
      *
      * @param \eZ\Publish\Core\FieldType\StorageGateway[] $gateways
-     * @param IOService $IOService
-     * @param PathGenerator $imageSizeMetadataHandler
-     * @param MetadataHandler $pathGenerator
+     * @param IOService                                   $IOService
+     * @param \eZ\Publish\Core\IO\MetadataHandler         $pathGenerator
+     * @param \eZ\Publish\Core\IO\MetadataHandler         $imageSizeMetadataHandler
+     * @param \Psr\Log\LoggerInterface                    $logger
      */
     public function __construct( array $gateways, IOService $IOService, PathGenerator $pathGenerator, MetadataHandler $imageSizeMetadataHandler, LoggerInterface $logger = null )
     {
@@ -168,8 +169,7 @@ class ImageStorage extends GatewayBasedStorage
             {
                 if ( isset( $this->logger ) )
                 {
-                    $imageId = $this->IOService->getExternalPath( $field->value->data['id'] );
-                    $this->logger->error( "Legacy file with SPI id $imageId not found" );
+                    $this->logger->error( "Image with ID {$field->value->data['id']} not found" );
                 }
                 return false;
             }
@@ -239,7 +239,7 @@ class ImageStorage extends GatewayBasedStorage
             {
                 if ( isset( $this->logger ) )
                 {
-                    $this->logger->error( "Legacy file with id $binaryFileId not found" );
+                    $this->logger->error( "Image with id {$field->value->data['id']} not found" );
                 }
                 return;
             }
@@ -285,9 +285,8 @@ class ImageStorage extends GatewayBasedStorage
                     {
                         if ( isset( $this->logger ) )
                         {
-                            $this->logger->error( "Legacy file with id $binaryFileId not found" );
+                            $this->logger->error( "Image with id $storedFilePath not found" );
                         }
-                        return;
                     }
                 }
             }

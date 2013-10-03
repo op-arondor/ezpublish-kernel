@@ -16,12 +16,18 @@ use eZ\Publish\SPI\FieldType\BinaryBase\PathGenerator;
 use eZ\Publish\SPI\Persistence\Content\VersionInfo;
 use eZ\Publish\SPI\Persistence\Content\Field;
 use eZ\Publish\SPI\IO\MimeTypeDetector;
+use Psr\Log\LoggerInterface;
 
 /**
  * Storage for binary files
  */
 class BinaryBaseStorage extends GatewayBasedStorage
 {
+    /**
+     * @var LoggerInterface
+     */
+    protected $logger;
+
     /**
      * An instance of IOService configured to store to the images folder
      *
@@ -41,15 +47,18 @@ class BinaryBaseStorage extends GatewayBasedStorage
      * Construct from gateways
      *
      * @param \eZ\Publish\Core\FieldType\StorageGateway[] $gateways
-     * @param IOService $IOService
-     * @param PathGenerator $pathGenerator
+     * @param IOService                                   $IOService
+     * @param PathGenerator                               $pathGenerator
+     * @param \eZ\Publish\SPI\IO\MimeTypeDetector         $mimeTypeDetector
+     * @param LoggerInterface                             $logger
      */
-    public function __construct( array $gateways, IOService $IOService, PathGenerator $pathGenerator, MimeTypeDetector $mimeTypeDetector )
+    public function __construct( array $gateways, IOService $IOService, PathGenerator $pathGenerator, MimeTypeDetector $mimeTypeDetector, LoggerInterface $logger = null )
     {
         parent::__construct( $gateways );
         $this->IOService = $IOService;
         $this->pathGenerator = $pathGenerator;
         $this->mimeTypeDetector = $mimeTypeDetector;
+        $this->logger = $logger;
     }
 
     /**
@@ -164,6 +173,12 @@ class BinaryBaseStorage extends GatewayBasedStorage
             }
             catch ( NotFoundException $e )
             {
+                if ( isset( $this->logger ) )
+                {
+                    $imageId = $this->IOService->getInternalPath( $fileReference['id'] );
+                    $this->logger->error( "BinaryFile with ID $imageId not found" );
+                }
+                return;
             }
         }
     }
@@ -193,6 +208,11 @@ class BinaryBaseStorage extends GatewayBasedStorage
             }
             catch ( NotFoundException $e )
             {
+                if ( isset( $this->logger ) )
+                {
+                    $fileId = $this->IOService->getInternalPath( $field->value->externalData['id'] );
+                    $this->logger->error( "BinaryFile with ID $fileId not found" );
+                }
                 return;
             }
         }
@@ -233,6 +253,11 @@ class BinaryBaseStorage extends GatewayBasedStorage
                 }
                 catch ( NotFoundException $e )
                 {
+                    if ( isset( $this->logger ) )
+                    {
+                        $filePath = $this->IOService->getInternalPath( $filePath );
+                        $this->logger->error( "BinaryFile with ID $filePath not found" );
+                    }
                 }
             }
         }
